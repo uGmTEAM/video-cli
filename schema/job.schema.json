@@ -1,0 +1,221 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "video-cli job",
+  "type": "object",
+  "required": ["scenes"],
+  "additionalProperties": true,
+  "properties": {
+    "version": {"type": "integer", "default": 1},
+    "project": {"type": "string", "default": "video"},
+    "output": {"type": "string", "description": "成片路径，相对 job.json 所在目录"},
+    "font_dir": {"type": "string", "description": "自定义字体目录（给 libass 用）"},
+    "video": {
+      "type": "object",
+      "properties": {
+        "preset": {"enum": ["1080p", "720p", "480p", "4k", "vertical_1080", "vertical_720", "vertical_480", "square_1080", "square_720"]},
+        "size": {"type": "string", "pattern": "^\\d+x\\d+$", "description": "覆盖 preset，如 1920x1080"},
+        "fps": {"type": "integer", "minimum": 1, "default": 30},
+        "crf": {"type": "integer", "minimum": 0, "maximum": 51, "default": 20},
+        "encoder": {"type": "string", "default": "libx264"},
+        "encode_preset": {"type": "string", "default": "medium"},
+        "pix_fmt": {"type": "string", "default": "yuv420p"},
+        "audio_bitrate": {"type": "string", "default": "192k"}
+      }
+    },
+    "audio": {
+      "type": "object",
+      "properties": {
+        "normalize": {"type": "boolean", "default": false, "description": "loudnorm 响度归一化"},
+        "loudness": {"type": "number", "default": -16},
+        "silent_track": {"type": "boolean", "default": true, "description": "无音频时补静音轨"},
+        "bgm": {
+          "oneOf": [
+            {"type": "string"},
+            {
+              "type": "object",
+              "required": ["src"],
+              "properties": {
+                "src": {"type": "string"},
+                "volume_db": {"type": "number", "default": -14},
+                "fade_in": {"type": "number", "default": 1},
+                "fade_out": {"type": "number", "default": 2},
+                "loop": {"type": "boolean", "default": true},
+                "ducking": {"type": "boolean", "default": true},
+                "duck_threshold": {"type": "number", "default": 0.03},
+                "duck_ratio": {"type": "number", "default": 8}
+              }
+            }
+          ]
+        }
+      }
+    },
+    "subtitles": {
+      "oneOf": [
+        {"type": "string", "description": "SRT 路径，等价于 {src: ...}"},
+        {
+          "type": "object",
+          "properties": {
+            "src": {"type": "string", "description": "SRT 路径"},
+            "ass": {"type": "string", "description": "已有 ASS 路径（与 src 二选一）"},
+            "burn": {"type": "boolean", "default": true},
+            "font_dir": {"type": "string"},
+            "style": {
+              "type": "object",
+              "properties": {
+                "font": {"type": "string", "default": "Noto Sans CJK SC"},
+                "size": {"type": "number", "default": 46},
+                "color": {"type": "string", "default": "#FFFFFF"},
+                "bold": {"type": "boolean", "default": true},
+                "outline": {"type": "number", "default": 2.4},
+                "outline_color": {"type": "string", "default": "#000000"},
+                "shadow": {"type": "number", "default": 0},
+                "margin_v": {"type": "number", "default": 56},
+                "margin_lr": {"type": "number", "default": 60},
+                "opacity": {"type": "number", "default": 1},
+                "max_chars": {"type": "number", "default": 18, "description": "单行宽度（按显示宽度折算）"}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "watermark": {
+      "type": "object",
+      "required": ["image"],
+      "properties": {
+        "image": {"type": "string"},
+        "position": {"enum": ["top-left", "top-right", "bottom-left", "bottom-right", "center"], "default": "top-right"},
+        "margin": {"type": "number", "default": 24},
+        "width": {"type": "number", "default": 160},
+        "opacity": {"type": "number", "default": 0.85},
+        "start": {"type": "number", "default": 0},
+        "end": {"type": ["number", "null"]}
+      }
+    },
+    "text_watermark": {
+      "oneOf": [
+        {"type": "string"},
+        {
+          "type": "object",
+          "required": ["content"],
+          "properties": {
+            "content": {"type": "string"},
+            "position": {"type": "string", "default": "bottom-right"},
+            "size": {"type": "number", "default": 28},
+            "color": {"type": "string", "default": "#FFFFFF"},
+            "opacity": {"type": "number", "default": 0.55},
+            "margin": {"type": "number", "default": 24},
+            "start": {"type": "number", "default": 0},
+            "end": {"type": ["number", "null"]}
+          }
+        }
+      ]
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {"enum": ["image", "video", "color", "gradient"]},
+          "src": {"type": "string", "description": "image/video 的素材路径"},
+          "duration": {"type": "number", "minimum": 0.1, "description": "成片时长；图片/纯色必填；视频可截断"},
+          "color": {"type": "string", "description": "type=color 时的颜色，#RRGGBB"},
+          "gradient": {
+            "type": "object",
+            "properties": {
+              "from": {"type": "string", "default": "#000000"},
+              "to": {"type": "string", "default": "#333333"}
+            }
+          },
+          "fit": {"enum": ["cover", "contain", "blur"], "default": "cover"},
+          "kenburns": {
+            "oneOf": [
+              {"enum": ["none", "in", "out", "left", "right", "up", "down"]},
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {"enum": ["none", "in", "out", "left", "right", "up", "down"], "default": "in"},
+                  "zoom": {"type": "number", "minimum": 1, "default": 1.15}
+                }
+              }
+            ]
+          },
+          "transition": {
+            "oneOf": [
+              {"type": "string"},
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "enum": ["none", "fade", "fadeblack", "fadewhite", "fadegrays", "fadefast", "fadeslow", "dissolve", "distance", "hblur", "wipeleft", "wiperight", "wipeup", "wipedown", "wipetl", "wipetr", "wipebl", "wipebr", "slideleft", "slideright", "slideup", "slidedown", "circlecrop", "rectcrop", "circleopen", "circleclose", "vertopen", "vertclose", "horzopen", "horzclose", "smoothleft", "smoothright", "smoothup", "smoothdown", "pixelize", "hlslice", "hrslice", "vuslice", "vdslice", "diagtl", "diagtr", "diagbl", "diagbr", "radial", "zoomin", "squeezeh", "squeezev"],
+                    "default": "fade"
+                  },
+                  "duration": {"type": "number", "default": 0.6}
+                }
+              }
+            ]
+          },
+          "texts": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {"type": "string"},
+                {
+                  "type": "object",
+                  "required": ["content"],
+                  "properties": {
+                    "content": {"type": "string", "description": "支持 \\n 换行"},
+                    "start": {"type": "number", "default": 0},
+                    "end": {"type": ["number", "null"]},
+                    "pos": {
+                      "oneOf": [
+                        {"enum": ["center", "top", "bottom", "top-left", "top-right", "bottom-left", "bottom-right", "center-left", "center-right"]},
+                        {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2}
+                      ]
+                    },
+                    "anim": {"enum": ["none", "fade", "fade_up", "fade_down", "slide_left", "slide_right", "typewriter"], "default": "fade"},
+                    "anim_duration": {"type": "number", "default": 0.5},
+                    "font": {"type": "string"},
+                    "size": {"type": "number"},
+                    "color": {"type": "string"},
+                    "outline": {"type": "number"},
+                    "outline_color": {"type": "string"},
+                    "opacity": {"type": "number"},
+                    "bold": {"type": "boolean"},
+                    "max_chars": {"type": "number"}
+                  }
+                }
+              ]
+            }
+          },
+          "audios": {
+            "type": "array",
+            "description": "场景内音频（配音等），时间相对场景起点",
+            "items": {
+              "oneOf": [
+                {"type": "string"},
+                {
+                  "type": "object",
+                  "required": ["src"],
+                  "properties": {
+                    "src": {"type": "string"},
+                    "start": {"type": "number", "default": 0},
+                    "volume_db": {"type": "number", "default": 0},
+                    "fade_in": {"type": "number", "default": 0},
+                    "fade_out": {"type": "number", "default": 0}
+                  }
+                }
+              ]
+            }
+          },
+          "start_time": {"type": "number", "description": "视频素材起始偏移"},
+          "speed": {"type": "number", "description": "变速，1.5=加速"},
+          "reverse": {"type": "boolean", "default": false},
+          "rotate": {"enum": [0, 90, 180, 270], "default": 0}
+        }
+      }
+    }
+  }
+}

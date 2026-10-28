@@ -1,0 +1,42 @@
+{
+  "project": "vertical-short",
+  "output": "out/vertical.mp4",
+  "video": {"preset": "vertical_1080", "fps": 30, "crf": 22},
+  "audio": {
+    "normalize": true,
+    "loudness": -14,
+    "bgm": {"src": "assets/bgm.mp3", "volume_db": -18, "ducking": true}
+  },
+  "subtitles": {
+    "src": "subs.srt",
+    "style": {"size": 58, "margin_v": 180, "max_chars": 12}
+  },
+  "watermark": {
+    "image": "assets/logo.png",
+    "position": "top-right",
+    "width": 120,
+    "opacity": 0.8
+  },
+  "text_watermark": {"content": "@your-channel", "position": "bottom-right", "size": 30},
+  "scenes": [
+    {
+      "type": "image",
+      "src": "assets/cover.jpg",
+      "duration": 3.2,
+      "kenburns": {"mode": "in", "zoom": 1.2},
+      "texts": [
+        {"content": "竖屏标题\n两行也可以", "pos": "center", "anim": "fade_up", "size": 84, "max_chars": 8}
+      ],
+      "transition": {"type": "fade", "duration": 0.4},
+      "audios": [{"src": "assets/voice-01.mp3", "start": 0.2, "volume_db": 0}]
+    },
+    {
+      "type": "video",
+      "src": "assets/clip.mp4",
+      "duration": 8,
+      "fit": "cover",
+      "transition": {"type": "fade", "duration": 0.4},
+      "audios": [{"src": "assets/voice-02.mp3", "start": 0.2}]
+    }
+  ]
+}

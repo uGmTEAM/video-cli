@@ -1,0 +1,47 @@
+{
+  "project": "image-slideshow",
+  "output": "out/slideshow.mp4",
+  "video": {"preset": "1080p", "fps": 30, "crf": 20},
+  "audio": {
+    "normalize": true,
+    "bgm": {"src": "assets/bgm.mp3", "volume_db": -16, "fade_in": 1.5, "fade_out": 2}
+  },
+  "subtitles": {
+    "src": "subs.srt",
+    "style": {"font": "Noto Sans CJK SC", "size": 46, "margin_v": 60}
+  },
+  "scenes": [
+    {
+      "type": "image",
+      "src": "assets/01.jpg",
+      "duration": 4.5,
+      "kenburns": {"mode": "in", "zoom": 1.18},
+      "texts": [
+        {"content": "第一幕", "pos": "center", "anim": "fade_up", "size": 96},
+        {"content": "副标题写在下方", "pos": [960, 640], "anim": "fade", "size": 40, "color": "#CBD5E1"}
+      ],
+      "transition": {"type": "fade", "duration": 0.6}
+    },
+    {
+      "type": "image",
+      "src": "assets/02.jpg",
+      "duration": 4.5,
+      "kenburns": {"mode": "left", "zoom": 1.12},
+      "transition": {"type": "slideleft", "duration": 0.6}
+    },
+    {
+      "type": "video",
+      "src": "assets/03.mp4",
+      "duration": 6,
+      "fit": "blur",
+      "speed": 1.0,
+      "texts": [{"content": "视频片段", "pos": "bottom-left", "anim": "slide_right", "size": 48}]
+    },
+    {
+      "type": "gradient",
+      "gradient": {"from": "#0F172A", "to": "#1E293B"},
+      "duration": 3,
+      "texts": [{"content": "感谢观看", "pos": "center", "anim": "fade", "size": 80}]
+    }
+  ]
+}

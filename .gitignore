@@ -1,0 +1,27 @@
+# 源码忽略无关
+bakup/
+.trae/
+dist/
+out/
+__pycache__/
+*.pyc
+*.pyo
+*.log
+*.ndjson
+.DS_Store
+
+# 测试产物 & 素材
+*.mp4
+*.gif
+*.webp
+*.m4a
+*.srt
+*.jpg
+*.png
+*.tar
+*.zip
+.tmp/
+.vscode/
+
+# Git
+.git/

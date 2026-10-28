@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+.git/
+bakup/
+tests/
+.tmp/
+out/
+*.mp4
+*.gif
+*.png
+work/
+.vscode/
