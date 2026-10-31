@@ -6,20 +6,48 @@ AI 运行时自动安装 + lazy import 机制。
 - _ensure_runtime(): 检查运行时是否可用
 - RuntimeStatus: 枚举 AVAILABLE / NEEDS_INSTALL / FAILED
 
+安装策略（三层，按优先级）：
+1. vendor/extensions/<name>/ 有 wheel → --no-index --find-links 完全离线
+2. 在线 pip install（runtime.auto_install_allowed=True 时）
+3. 都不行 → raise ImportError 带友好提示
+
 设计原则：
-- 默认不预装任何 AI 包（保持 Docker 镜像 294MB 瘦）
-- 用户首次 import 或调用 cli 带 --install-extension whisperx 时自动 pip install
-- 或者 docker build --build-arg WITH_WHISPERX=1 预装
+- 默认不预装任何 AI 包（保持 Docker 镜像 309MB 瘦）
+- 联网机器上 bash scripts/fetch_ai_deps.sh 拉好 wheel 放进 vendor/
+- 之后 Docker build + runtime install 完全离线
 """
 
 from __future__ import annotations
 
 import enum
+import os
 import subprocess
 import sys
 import threading
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Optional
+
+
+# ── vendor 离线 wheel 查找路径 ─────────────────────────────────
+
+def _find_vendor_dir(runtime_name: str) -> Optional[Path]:
+    """
+    查找 vendor/extensions/<runtime_name>/ 目录。
+
+    搜索顺序：
+    1. 硬编码默认 /opt/video-cli/vendor/extensions/<name>  （Docker 容器内）
+    2. 当前工作目录 vendor/extensions/<name>
+    3. PYTHONPATH 第一个路径下 vendor/extensions/<name>
+    """
+    candidates = [
+        Path("/opt/video-cli/vendor/extensions") / runtime_name,
+        Path.cwd() / "vendor" / "extensions" / runtime_name,
+    ]
+    for p in candidates:
+        if p.is_dir() and any(p.glob("*.whl")):
+            return p
+    return None
 
 
 class RuntimeStatus(str, enum.Enum):
@@ -106,7 +134,7 @@ def lazy_import(runtime_name: str, auto_install: bool | None = None) -> Any:
         # 自动安装
         print(f"[vcli.extensions] 首次使用，正在自动安装 {runtime_name}...", file=sys.stderr)
         try:
-            _pip_install(info.pip_packages)
+            _pip_install(info.pip_packages, runtime_name=runtime_name)
             if info.install_extra_step:
                 info.install_extra_step()
             info._status = RuntimeStatus.AVAILABLE
@@ -125,12 +153,46 @@ def _do_import(name: str) -> Any:
     return importlib.import_module(name)
 
 
-def _pip_install(packages: tuple[str, ...]) -> None:
-    """pip install — 用 subprocess 跑 python -m pip。"""
-    cmd = [sys.executable, "-m", "pip", "install", "--quiet", "--no-input", *packages]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-    if result.returncode != 0:
+def _pip_install(packages: tuple[str, ...],
+                 runtime_name: str | None = None,
+                 allow_online: bool = True) -> None:
+    """
+    pip install — 三层策略。
+
+    1. vendor/extensions/<name>/ 有 wheel → --no-index --find-links 离线装
+    2. allow_online=True → 在线 pip install
+    3. 都不行 → raise RuntimeError
+    """
+    # 层 1：vendor 离线
+    if runtime_name:
+        vendor_dir = _find_vendor_dir(runtime_name)
+        if vendor_dir is not None:
+            cmd = [
+                sys.executable, "-m", "pip", "install", "--quiet", "--no-input",
+                "--no-index", "--find-links", str(vendor_dir),
+                *packages,
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+            if result.returncode == 0:
+                print(f"[runtime] {runtime_name} 从 vendor 离线安装成功", file=sys.stderr)
+                return
+            # 离线装失败（缺依赖？）→ fallback 在线
+            print(f"[runtime] vendor 离线装 {runtime_name} 失败，尝试在线...", file=sys.stderr)
+
+    # 层 2：在线
+    if allow_online:
+        cmd = [sys.executable, "-m", "pip", "install", "--quiet", "--no-input", *packages]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        if result.returncode == 0:
+            return
         raise RuntimeError(f"pip install failed:\n{result.stderr}")
+
+    # 层 3：都不行
+    raise RuntimeError(
+        f"离线/在线安装均失败。\n"
+        f"请先在联网机器上: bash scripts/fetch_ai_deps.sh {runtime_name}\n"
+        f"再把 vendor/extensions/ 目录拷过来，或开启联网安装。"
+    )
 
 
 def install_runtime(runtime_name: str) -> bool:
@@ -143,7 +205,7 @@ def install_runtime(runtime_name: str) -> bool:
         return False
     try:
         with info._lock:
-            _pip_install(info.pip_packages)
+            _pip_install(info.pip_packages, runtime_name=runtime_name)
             if info.install_extra_step:
                 info.install_extra_step()
             info._status = RuntimeStatus.AVAILABLE
